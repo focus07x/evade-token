@@ -6,16 +6,16 @@ pcall(function()
 end)
 
 -- =====================================================
--- ⚙️ SETTINGS (ปรับตรงนี้อย่างเดียวพอ)
+-- ⚙️ SETTINGS
 -- =====================================================
 
-getgenv().FarmToken = true      -- true = ฟาร์มโทเคน | false = ไม่ฟาร์ม
-getgenv().TokenDelay = 0.50     -- ความเร็ววาร์ปเก็บโทเคน (ยิ่งมากยิ่งนิ่ง)
+getgenv().FarmToken = true
+getgenv().TokenDelay = 0.7      -- ยืนรอให้เซิร์ฟเวอร์นับ (แนะนำ 1.0~1.5)
 
-local SAFE_BLOCK_HEIGHT = 4000   -- 🔼 ความสูงแท่นลอย
-local SAFE_BLOCK_SIZE = Vector3.new(20, 1, 20) -- 📦 ขนาดแท่น
-local RETURN_DISTANCE = 55      -- 🔁 ระยะดึงกลับแท่น
-local JOIN_INTERVAL = 1.5       -- ⏱ ความถี่กด Join (วินาที)
+local SAFE_BLOCK_HEIGHT = 4000
+local SAFE_BLOCK_SIZE = Vector3.new(20, 1, 20)
+local RETURN_DISTANCE = 55
+local JOIN_INTERVAL = 1.5
 
 -- =====================================================
 -- 🧠 SERVICES / VARIABLES
@@ -33,7 +33,7 @@ local joinEvent = ReplicatedStorage:WaitForChild("Events")
 
 local currentBlock = nil
 local blockLoopRunning = false
-local farmingToken = false -- ⭐ สำคัญ: ใช้แก้ปัญหาวาร์ปกลับเร็ว
+local farmingToken = false
 
 -- =====================================================
 -- 🛑 กัน AFK
@@ -44,7 +44,7 @@ player.Idled:Connect(function()
 end)
 
 -- =====================================================
--- 🏠 เช็คว่าอยู่ล็อบบี้หรือไม่ (ดูจาก UI Version)
+-- 🏠 เช็คว่าอยู่ล็อบบี้หรือไม่
 -- =====================================================
 local function isInLobby()
     local gui = player:WaitForChild("PlayerGui")
@@ -60,7 +60,7 @@ local function isInLobby()
 end
 
 -- =====================================================
--- 🟦 สร้าง Safe Block + วาร์ปขึ้น
+-- 🟦 สร้าง Safe Block (ไม่วาร์ปขึ้นทันที)
 -- =====================================================
 local function createSafeBlock(character)
     local hrp = character:WaitForChild("HumanoidRootPart")
@@ -80,7 +80,6 @@ local function createSafeBlock(character)
 
     local pos = hrp.Position + Vector3.new(0, SAFE_BLOCK_HEIGHT, 0)
     block.CFrame = CFrame.new(pos)
-    hrp.CFrame = CFrame.new(pos + Vector3.new(0, 3, 0))
 
     currentBlock = block
 
@@ -100,13 +99,24 @@ local function createSafeBlock(character)
             end
 
             if not farmingToken then
-                local hrp = player.Character.HumanoidRootPart
-                if (hrp.Position - currentBlock.Position).Magnitude > RETURN_DISTANCE then
-                    hrp.CFrame = CFrame.new(currentBlock.Position + Vector3.new(0, 3, 0))
+                local hrp2 = player.Character.HumanoidRootPart
+                if (hrp2.Position - currentBlock.Position).Magnitude > RETURN_DISTANCE then
+                    hrp2.CFrame = CFrame.new(currentBlock.Position + Vector3.new(0, 3, 0))
                 end
             end
         end
     end)
+end
+
+-- =====================================================
+-- 🔼 วาร์ปขึ้นแท่น (เรียกหลังเก็บโทเคนเสร็จ)
+-- =====================================================
+local function returnToSafeBlock()
+    local char = player.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp and currentBlock then
+        hrp.CFrame = CFrame.new(currentBlock.Position + Vector3.new(0, 3, 0))
+    end
 end
 
 -- =====================================================
@@ -155,7 +165,7 @@ end
 listenHUD()
 
 -- =====================================================
--- 🪙 Auto Farm Token (แก้แล้ว เก็บทันแน่นอน)
+-- 🪙 Auto Farm Token → ยืนรอให้นับ → วาร์ปขึ้นแท่น
 -- =====================================================
 local function getTokenFolder()
     if Workspace:FindFirstChild("Game")
@@ -168,7 +178,7 @@ end
 task.spawn(function()
     while true do
         if getgenv().FarmToken and not isInLobby() then
-            farmingToken = true -- 🔓 ปิดการดึงกลับชั่วคราว
+            farmingToken = true -- 🔓 หยุดดึงกลับชั่วคราว
 
             local tokens = getTokenFolder()
             local char = player.Character
@@ -179,20 +189,24 @@ task.spawn(function()
                     if not getgenv().FarmToken then break end
                     local part = token:FindFirstChild("HumanoidRootPart")
                     if part then
-                        hrp.CFrame = part.CFrame
-                        task.wait(getgenv().TokenDelay) -- ⏱ รอให้เซิร์ฟเวอร์นับ
+                        hrp.CFrame = part.CFrame           -- วาร์ปไปยืนที่โทเคน
+                        task.wait(getgenv().TokenDelay)    -- ⏱ รอรอบแรก
+                        task.wait(getgenv().TokenDelay)    -- ⏱ รอรอบสองให้ชัวร์
                     end
                 end
             end
 
-            farmingToken = false -- 🔒 เก็บเสร็จ → กลับขึ้น Safe Block
+            farmingToken = false -- 🔒 เก็บเสร็จแล้ว
+
+            -- ✅ วาร์ปขึ้นแท่นหลังเก็บครบ
+            returnToSafeBlock()
         end
         task.wait(1)
     end
 end)
 
 -- =====================================================
--- 👤 ตัวละครเกิดใหม่
+-- 👤 ตัวละครเกิดใหม่ → สร้างแท่น
 -- =====================================================
 player.CharacterAdded:Connect(function(char)
     task.wait(0.1)
@@ -202,7 +216,7 @@ player.CharacterAdded:Connect(function(char)
 end)
 
 -- =====================================================
--- 🔄 MAIN LOOP (Join / สร้างบล็อก)
+-- 🔄 MAIN LOOP
 -- =====================================================
 while true do
     if isInLobby() then
