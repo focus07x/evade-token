@@ -10,11 +10,11 @@ end)
 -- =====================================================
 
 getgenv().FarmToken = true      -- true = ฟาร์มโทเคน | false = ไม่ฟาร์ม
-getgenv().TokenDelay = 0.25     -- ความเร็ววาร์ปเก็บโทเคน (ยิ่งมากยิ่งนิ่ง)
+getgenv().TokenDelay = 0.50     -- ความเร็ววาร์ปเก็บโทเคน (ยิ่งมากยิ่งนิ่ง)
 
 local SAFE_BLOCK_HEIGHT = 4000   -- 🔼 ความสูงแท่นลอย
 local SAFE_BLOCK_SIZE = Vector3.new(20, 1, 20) -- 📦 ขนาดแท่น
-local RETURN_DISTANCE = 15      -- 🔁 ระยะดึงกลับแท่น
+local RETURN_DISTANCE = 55      -- 🔁 ระยะดึงกลับแท่น
 local JOIN_INTERVAL = 1.5       -- ⏱ ความถี่กด Join (วินาที)
 
 -- =====================================================
@@ -90,7 +90,7 @@ local function createSafeBlock(character)
     -- 🔁 ลูปดึงกลับแท่น (เฉพาะตอน NOT ฟาร์มโทเคน)
     task.spawn(function()
         while blockLoopRunning do
-            task.wait(0.8)
+            task.wait(1.5)
 
             if not currentBlock
             or not player.Character
@@ -195,7 +195,7 @@ end)
 -- 👤 ตัวละครเกิดใหม่
 -- =====================================================
 player.CharacterAdded:Connect(function(char)
-    task.wait(0.5)
+    task.wait(0.1)
     if not isInLobby() then
         createSafeBlock(char)
     end
